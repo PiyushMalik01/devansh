@@ -17,6 +17,12 @@ The contribution of this workspace lives in [`ScatterCamo/`](ScatterCamo/) —
 see [`ScatterCamo/docs/design.md`](ScatterCamo/docs/design.md) for the rationale
 and [`ScatterCamo/docs/method.md`](ScatterCamo/docs/method.md) for the algorithm.
 
+## Credits
+
+CamoPatch and SA-MOO are the work of **Phoenix Neale Williams & Ke Li**
+(University of Exeter). Full attribution, citations (BibTeX), source links, and
+licensing notes are in [`CREDITS.md`](CREDITS.md).
+
 ## Quick start (ScatterCamo)
 
 ```bash
