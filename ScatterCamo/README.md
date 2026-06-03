@@ -93,3 +93,9 @@ for name, factory in {
 
 See `docs/method.md` for the algorithm and `docs/design.md` for the decisions
 behind this approach.
+
+## License
+
+ScatterCamo is released under the [MIT License](LICENSE). The license covers
+only this folder; the sibling reference repos remain their authors' IP — see
+[`../CREDITS.md`](../CREDITS.md).
