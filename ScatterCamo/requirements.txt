@@ -1,0 +1,15 @@
+# Core (search engine + renderer + tests)
+numpy>=1.23
+
+# Real attacks on ImageNet classifiers
+torch>=2.0
+torchvision>=0.15
+Pillow>=9.0
+
+# Metrics + analysis
+scikit-image>=0.20
+matplotlib>=3.7
+PyYAML>=6.0
+
+# Baselines (adversarially-trained models)
+# robustbench @ git+https://github.com/RobustBench/robustbench.git

@@ -1,0 +1,9 @@
+# Fast iteration on a laptop GPU (RTX 4060). Seconds per image.
+model: 1            # resnet50
+M: 8                # shapes
+queries: 500        # tiny budget for smoke-scale runs
+pop_size: 10
+pc: 0.3
+pm: 0.3
+seed: 0
+n_images: 5

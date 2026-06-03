@@ -1,0 +1,9 @@
+# Paper-grade runs on a rented GPU.
+model: 1            # resnet50 (also sweep 0=vgg16_bn and an adv-trained model)
+M: 10               # sweep over {1, 5, 10, 20, 40} to trace the frontier
+queries: 10000
+pop_size: 20
+pc: 0.3
+pm: 0.3
+seed: 0
+n_images: 1000      # correctly-classified ImageNet val images
