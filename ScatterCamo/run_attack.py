@@ -55,8 +55,8 @@ def save_image(arr, path):
 DEFAULTS = {
     "model": 1, "true_label": None, "M": 10, "queries": 10000,
     "pop_size": 20, "pc": 0.3, "pm": 0.3, "seed": 0,
-    "perceptual": False, "mask_dark": 1.0, "mask_edges": 1.0,
-    "mask_texture": 1.0, "mask_window": 7, "mock": False,
+    "max_radius_frac": 0.10, "perceptual": False, "mask_dark": 1.0,
+    "mask_edges": 1.0, "mask_texture": 1.0, "mask_window": 7, "mock": False,
     "out_image": None, "save": None,
 }
 
@@ -108,6 +108,9 @@ def main():
     ap.add_argument("--pc", type=float, default=S)
     ap.add_argument("--pm", type=float, default=S)
     ap.add_argument("--seed", type=int, default=S)
+    ap.add_argument("--max_radius_frac", type=float, default=S,
+                    help="max shape radius as a fraction of min(H, W); lower = "
+                         "smaller circles (default 0.10)")
     # Perceptual placement (hide patches in dark / edge / textured regions).
     ap.add_argument("--perceptual", action="store_true", default=S,
                     help="bias placement + visibility objective toward hideable regions")
@@ -158,6 +161,7 @@ def main():
     attack = ScatterCamoAttack({
         "x": x, "M": args.M, "queries": args.queries, "pop_size": args.pop_size,
         "pc": args.pc, "pm": args.pm, "seed": args.seed,
+        "max_radius_frac": args.max_radius_frac,
         "perceptual": args.perceptual, "mask_dark": args.mask_dark,
         "mask_edges": args.mask_edges, "mask_texture": args.mask_texture,
         "mask_window": args.mask_window,

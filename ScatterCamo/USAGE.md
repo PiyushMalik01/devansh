@@ -118,6 +118,7 @@ python run_attack.py --mock --image docs/sample.jpg --M 10 --queries 500 --out_i
 | `--pc` | no | `0.3` | Crossover rate, in `[0, 1]` (how much parents mix when breeding). |
 | `--pm` | no | `0.3` | Mutation rate, in `[0, 1]` (how often a child gets randomly tweaked). |
 | `--seed` | no | `0` | Random seed. Same seed → same run, for reproducibility. |
+| `--max_radius_frac` | no | `0.10` | Max circle radius as a fraction of the shorter image side. **Lower = smaller circles** (0.05 ≈ 11 px, 0.02 ≈ 4.5 px on a 224px image). |
 | `--perceptual` | no | *off* | Hide patches in dark / edge / textured regions (§5b). Off → plain ScatterCamo. |
 | `--mask_dark` | no | `1.0` | Luminance-masking weight. **Only used with `--perceptual`.** |
 | `--mask_edges` | no | `1.0` | Edge-masking weight. **Only used with `--perceptual`.** |
@@ -273,6 +274,33 @@ hideability_panel(load_image("img.JPEG"), "my_map.png")   # original + 3 signals
 `--mask_dark`, `--mask_edges`, `--mask_texture`, and `--mask_window` are read
 **only when `--perceptual` is set**. Without `--perceptual` they are ignored and
 the run is identical to plain ScatterCamo.
+
+---
+
+## 5c. Controlling circle size
+
+Two different knobs change how the perturbation looks:
+
+- **`--M`** = *how many* circles (§5).
+- **`--max_radius_frac`** = *how big* each circle can get — its radius as a
+  fraction of the shorter image side. Default `0.10` (≈ 22 px on a 224px image).
+  **Lower it for smaller circles:**
+
+```powershell
+# tiny circles:
+uv run python run_attack.py --config configs/single.yaml --max_radius_frac 0.03
+```
+
+| `--max_radius_frac` | max radius (224px image) |
+|---|---|
+| `0.10` (default) | ~22 px |
+| `0.05` | ~11 px |
+| `0.02` | ~4.5 px |
+
+Under the hood each shape's radius is `radius_gene × (max_radius_frac × min(H,W)) + 1`
+pixels, so this flag sets the *ceiling*; the search still shrinks shapes below it
+to lower L2. Works the same with or without `--perceptual`, and can be set in a
+config file like any other flag.
 
 ---
 
