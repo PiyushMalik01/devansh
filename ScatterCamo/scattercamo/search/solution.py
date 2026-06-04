@@ -8,19 +8,20 @@ an adversarial solution always beats a non-adversarial one; ties broken by L2
 """
 
 import numpy as np
-from copy import deepcopy
 from operator import attrgetter
 
 from scattercamo.representation import generate_image, l2_perturbation
+from scattercamo.perception import weighted_l2
 
 
 class Solution:
     """A candidate attack: a genome of shapes plus its evaluation state."""
 
-    def __init__(self, genome, x, max_radius):
+    def __init__(self, genome, x, max_radius, visibility=None):
         self.genome = genome          # (M, 7)
         self.x = x                    # original image (h, w, 3)
         self.max_radius = max_radius
+        self.visibility = visibility  # (h, w) in [0, 1] = 1 - W; None -> plain L2
 
         self.fitnesses = None         # np.array([loss, l2_squared])
         self.is_adversarial = None
@@ -33,7 +34,15 @@ class Solution:
         self.crowding_distance = None
 
     def copy(self):
-        return deepcopy(self)
+        """Lightweight clone: copy the (tiny) genome, share the immutable image
+        and visibility map by reference.
+
+        ``x`` and ``visibility`` are never mutated in place (the renderer copies
+        ``x`` before drawing), so sharing them avoids deep-copying the full image
+        for every child each generation. The clone starts with fresh evaluation
+        state — every child is re-evaluated before it is used.
+        """
+        return Solution(self.genome.copy(), self.x, self.max_radius, self.visibility)
 
     def generate_image(self):
         return generate_image(self.genome, self.x, self.max_radius)
@@ -43,8 +52,11 @@ class Solution:
         is_adv, loss = loss_function(adv)
         self.is_adversarial = bool(is_adv)
         self.loss = float(loss)
-        self.fitnesses = np.array([self.loss, l2_perturbation(adv, self.x)],
-                                  dtype=np.float64)
+        if self.visibility is None:
+            l2 = l2_perturbation(adv, self.x)
+        else:
+            l2 = weighted_l2(adv, self.x, self.visibility)
+        self.fitnesses = np.array([self.loss, l2], dtype=np.float64)
 
     def dominates(self, other):
         """Prioritized domination (SA-MOO Definition 3.1)."""

@@ -15,6 +15,7 @@ import numpy as np
 from operator import attrgetter
 
 from scattercamo.representation import random_genome
+from scattercamo.perception import hideability_map, seed_positions
 from scattercamo.search import (
     Solution,
     fast_nondominated_sort,
@@ -33,6 +34,12 @@ DEFAULTS = {
     "pm": 0.3,              # mutation rate (re-roll vs jitter)
     "tournament_size": 2,
     "seed": 0,
+    # Perceptual placement (off by default -> identical to plain ScatterCamo).
+    "perceptual": False,    # master switch for hideability-aware placement
+    "mask_dark": 1.0,       # luminance-masking weight  (used only if perceptual)
+    "mask_edges": 1.0,      # edge-masking weight        (used only if perceptual)
+    "mask_texture": 1.0,    # texture-masking weight     (used only if perceptual)
+    "mask_window": 7,       # local-variance window for the texture signal
 }
 
 
@@ -47,9 +54,23 @@ class ScatterCamoAttack:
         self.max_radius = self.p["max_radius_frac"] * min(h, w)
         self.history = []
 
+        # Perceptual placement: build the hideability map once from the clean
+        # image, then seed positions from it and reweight the L2 objective.
+        if self.p["perceptual"]:
+            self.W = hideability_map(
+                self.p["x"], self.p["mask_dark"], self.p["mask_edges"],
+                self.p["mask_texture"], self.p["mask_window"],
+            )
+            self.visibility = 1.0 - self.W
+        else:
+            self.W = None
+            self.visibility = None
+
     def _new_solution(self):
         genome = random_genome(self.p["M"], self.rng)
-        return Solution(genome, self.p["x"], self.max_radius)
+        if self.W is not None:
+            genome[:, :2] = seed_positions(self.W, self.p["M"], self.rng)
+        return Solution(genome, self.p["x"], self.max_radius, self.visibility)
 
     @staticmethod
     def _best_adversarial(population):

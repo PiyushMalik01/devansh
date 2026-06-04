@@ -9,7 +9,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
 
-from scattercamo.analysis import frontier_curve, pareto_plot, qualitative_grid
+from scattercamo.analysis import (
+    frontier_curve, pareto_plot, qualitative_grid, hideability_panel,
+)
 
 
 def _nonempty(path):
@@ -46,9 +48,19 @@ def test_qualitative_grid():
     print("  [ok] qualitative_grid produced a figure")
 
 
+def test_hideability_panel():
+    rng = np.random.default_rng(0)
+    x = rng.random((32, 32, 3))
+    with tempfile.TemporaryDirectory() as d:
+        out = hideability_panel(x, os.path.join(d, "hideability.png"))
+        assert _nonempty(out)
+    print("  [ok] hideability_panel produced a figure")
+
+
 if __name__ == "__main__":
     print("Running analysis tests...")
     test_frontier_curve()
     test_pareto_plot()
     test_qualitative_grid()
+    test_hideability_panel()
     print("ANALYSIS TESTS PASSED")
