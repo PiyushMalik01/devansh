@@ -50,38 +50,84 @@ def save_image(arr, path):
     Image.fromarray(pixels).save(path)
 
 
+# Built-in defaults. A --config YAML overrides these; explicit CLI flags override
+# both. ``image`` has no default -- it must come from the CLI or the config file.
+DEFAULTS = {
+    "model": 1, "true_label": None, "M": 10, "queries": 10000,
+    "pop_size": 20, "pc": 0.3, "pm": 0.3, "seed": 0,
+    "perceptual": False, "mask_dark": 1.0, "mask_edges": 1.0,
+    "mask_texture": 1.0, "mask_window": 7, "mock": False,
+    "out_image": None, "save": None,
+}
+
+
+def resolve_config(ap, cli):
+    """Merge built-in defaults < ``--config`` YAML < explicit CLI flags.
+
+    ``cli`` is ``vars(parsed_args)`` where unset options are absent (the parser
+    uses ``SUPPRESS`` defaults), so only flags the user actually typed appear and
+    correctly win over the config file. Returns an ``argparse.Namespace``.
+    """
+    cfg = dict(DEFAULTS)
+    config_path = cli.pop("config", None)
+    if config_path:
+        import yaml
+        with open(config_path) as f:
+            loaded = yaml.safe_load(f) or {}
+        ignored = []
+        for key, value in loaded.items():
+            if key in DEFAULTS or key == "image":
+                cfg[key] = value
+            else:
+                ignored.append(key)
+        if ignored:
+            print(f"note: ignoring config keys not used by run_attack: "
+                  f"{', '.join(ignored)}")
+    cfg.update(cli)                       # explicit CLI flags win over the config
+    if not cfg.get("image"):
+        ap.error("--image is required (pass --image or set 'image' in --config)")
+    return argparse.Namespace(**cfg)
+
+
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--model", type=int, default=1, help="0=vgg16_bn, 1=resnet50")
-    ap.add_argument("--image", type=str, required=True)
-    ap.add_argument("--true_label", type=int, default=None,
+    ap = argparse.ArgumentParser(
+        description="Run ScatterCamo on one image. Precedence: CLI flags override "
+                    "a --config YAML, which overrides the built-in defaults.")
+    S = argparse.SUPPRESS                 # unset flags stay absent so config can fill them
+    ap.add_argument("--config", type=str, default=None,
+                    help="YAML config file; any flag below may be set there "
+                         "(explicit CLI flags override it)")
+    ap.add_argument("--image", type=str, default=S)
+    ap.add_argument("--model", type=int, default=S, help="0=vgg16_bn, 1=resnet50")
+    ap.add_argument("--true_label", type=int, default=S,
                     help="correct ImageNet class (0-999); if omitted, the model's "
                          "own prediction on the clean image is used")
-    ap.add_argument("--M", type=int, default=10)
-    ap.add_argument("--queries", type=int, default=10000)
-    ap.add_argument("--pop_size", type=int, default=20)
-    ap.add_argument("--pc", type=float, default=0.3)
-    ap.add_argument("--pm", type=float, default=0.3)
-    ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--M", type=int, default=S)
+    ap.add_argument("--queries", type=int, default=S)
+    ap.add_argument("--pop_size", type=int, default=S)
+    ap.add_argument("--pc", type=float, default=S)
+    ap.add_argument("--pm", type=float, default=S)
+    ap.add_argument("--seed", type=int, default=S)
     # Perceptual placement (hide patches in dark / edge / textured regions).
-    ap.add_argument("--perceptual", action="store_true",
+    ap.add_argument("--perceptual", action="store_true", default=S,
                     help="bias placement + visibility objective toward hideable regions")
-    ap.add_argument("--mask_dark", type=float, default=1.0,
+    ap.add_argument("--mask_dark", type=float, default=S,
                     help="luminance-masking weight (only with --perceptual)")
-    ap.add_argument("--mask_edges", type=float, default=1.0,
+    ap.add_argument("--mask_edges", type=float, default=S,
                     help="edge-masking weight (only with --perceptual)")
-    ap.add_argument("--mask_texture", type=float, default=1.0,
+    ap.add_argument("--mask_texture", type=float, default=S,
                     help="texture-masking weight (only with --perceptual)")
-    ap.add_argument("--mask_window", type=int, default=7,
+    ap.add_argument("--mask_window", type=int, default=S,
                     help="local-variance window for the texture signal")
-    ap.add_argument("--mock", action="store_true",
+    ap.add_argument("--mock", action="store_true", default=S,
                     help="use a torch-free mock classifier (no weights download) to "
                          "verify the pipeline / flags without running a real model")
-    ap.add_argument("--out_image", type=str, default=None,
+    ap.add_argument("--out_image", type=str, default=S,
                     help="path + filename to save the adversarial image as a viewable "
                          "picture, e.g. out/adv.png (format from the extension)")
-    ap.add_argument("--save", type=str, default=None, help="path prefix for .npy result")
-    args = ap.parse_args()
+    ap.add_argument("--save", type=str, default=S, help="path prefix for .npy result")
+
+    args = resolve_config(ap, vars(ap.parse_args()))
 
     x = load_image(args.image)
     if args.mock:

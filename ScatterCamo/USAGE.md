@@ -50,7 +50,7 @@ If that prints passing tests, the search engine works on your machine. You can r
 the *whole* test suite the same way:
 
 ```powershell
-uv run python tests/test_smoke.py; uv run python tests/test_perception.py; uv run python tests/test_baselines.py; uv run python tests/test_runner.py; uv run python tests/test_analysis.py
+uv run python tests/test_smoke.py; uv run python tests/test_perception.py; uv run python tests/test_config.py; uv run python tests/test_baselines.py; uv run python tests/test_runner.py; uv run python tests/test_analysis.py
 ```
 
 ---
@@ -278,21 +278,45 @@ the run is identical to plain ScatterCamo.
 
 ## 6. Using a config file instead of long flags
 
-`configs/dev.yaml` (laptop-friendly) and `configs/full.yaml` (rented GPU) hold
-preset values so you don't retype flags. For example `dev.yaml`:
+Pass `--config <file.yaml>` to set any flag from a file instead of retyping long
+command lines. `configs/single.yaml` is a ready-made example:
 
-```yaml
-model: 1
-M: 8
-queries: 500     # tiny budget, runs in seconds
-pop_size: 10
-...
+```powershell
+uv run python run_attack.py --config configs/single.yaml
 ```
 
-> Note: `run_attack.py` itself currently reads **command-line flags, not the YAML**
-> — the configs are consumed by the batch experiment runner (see §7). If you'd like
-> `run_attack.py` to accept `--config configs/dev.yaml` too, that's another small
-> change I can make for you.
+Any flag name can be a key in the YAML (including `image`):
+
+```yaml
+# configs/single.yaml
+image: docs/sample.jpg
+model: 1
+M: 10
+queries: 10000
+perceptual: true        # turn on perceptual placement
+out_image: out/adv.png  # save a viewable picture
+```
+
+### Precedence (what wins)
+
+```
+built-in defaults   <   --config YAML   <   explicit CLI flags
+```
+
+So you can keep a base config and tweak one thing on the command line — the CLI
+flag overrides the file:
+
+```powershell
+# same config, but override M and add --mock for a quick offline check:
+uv run python run_attack.py --config configs/single.yaml --M 5 --mock
+```
+
+Notes:
+- `--image` may come from the config **or** the CLI; if neither provides it, you
+  get a clean "image is required" error.
+- Keys the single-image runner doesn't use (e.g. `n_images` in `dev.yaml` /
+  `full.yaml`, which are for the batch runner in §7) are ignored with a one-line
+  note — so those existing configs work as-is.
 
 ---
 

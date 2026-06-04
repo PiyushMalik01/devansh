@@ -1,0 +1,23 @@
+# Example config for run_attack.py (single image).
+#   uv run python run_attack.py --config configs/single.yaml
+# Any flag can be set here; explicit CLI flags override these values.
+
+image: docs/sample.jpg
+model: 1            # 0=vgg16_bn, 1=resnet50
+M: 10
+queries: 10000
+pop_size: 20
+pc: 0.3
+pm: 0.3
+seed: 0
+
+# Perceptual placement (optional; hide patches in dark / edge / textured regions)
+perceptual: true
+mask_dark: 1.0
+mask_edges: 1.0
+mask_texture: 1.0
+mask_window: 7
+
+# Output (optional)
+out_image: out/adv.png
+# save: out/run     # uncomment to also write the full .npy bundle
