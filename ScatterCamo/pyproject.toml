@@ -1,0 +1,31 @@
+[project]
+name = "scattercamo"
+version = "0.1.0"
+description = "Multi-objective scattered camouflaged adversarial patches (black-box, query-limited, untargeted)."
+readme = "README.md"
+requires-python = ">=3.9,<3.13"
+license = { file = "LICENSE" }
+
+# Core: the search engine, renderer, metrics, analysis, tests, and the
+# torch-free --mock flag-check mode all run on just these.
+dependencies = [
+    "numpy>=1.23",
+    "Pillow>=9.0",
+    "scikit-image>=0.20",
+    "matplotlib>=3.7",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+# Real attacks on ImageNet classifiers need PyTorch (a large download).
+# `uv sync` installs only the core above; for real runs:  uv sync --extra real
+real = [
+    "torch>=2.0",
+    "torchvision>=0.15",
+]
+
+[tool.uv]
+# This is an application (run via run_attack.py / tests), not a distributable
+# library, so uv installs the dependencies into .venv without building the
+# project itself.
+package = false

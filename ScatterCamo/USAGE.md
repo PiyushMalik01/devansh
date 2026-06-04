@@ -11,31 +11,46 @@ A practical, copy-paste guide. If you don't yet know *what* this does, read
 
 ## 1. One-time setup
 
+The project is `uv`-ready. From inside the `ScatterCamo` folder:
+
 ```powershell
-# from inside the ScatterCamo folder
-pip install -r requirements.txt
+uv sync
 ```
 
-This installs NumPy, PyTorch, torchvision, Pillow, scikit-image, matplotlib, PyYAML.
-The first real attack will also **download the model weights** (resnet50 /
-vgg16_bn) automatically — that needs internet and a few hundred MB, once.
+That creates a `.venv` and installs the **core** dependencies (NumPy, Pillow,
+scikit-image, matplotlib, PyYAML) — fast, no large downloads. Run anything with
+`uv run`, e.g. `uv run python run_attack.py ...` (no need to activate the venv).
 
-> **torch is only needed for *real* attacks.** Everything else — the tests, the
-> hideability visualization, and the `--mock` flag-check mode (§2b) — runs on just
-> NumPy + Pillow + scikit-image + matplotlib. If you only want to try the flags,
-> you can skip installing torch/torchvision.
+> **torch is only needed for *real* attacks**, so it is an optional extra. The
+> tests, the hideability visualization, and the `--mock` flag-check mode (§2b) all
+> run on the core alone. When you want to attack a real classifier, pull in
+> PyTorch + torchvision:
+>
+> ```powershell
+> uv sync --extra real
+> ```
+>
+> The first real attack then **downloads the model weights** (resnet50 / vgg16_bn)
+> automatically — internet + a few hundred MB, once.
+
+<details><summary>Prefer plain pip instead of uv?</summary>
+
+```powershell
+pip install -r requirements.txt   # installs everything, including torch
+```
+</details>
 
 ### Sanity check (no GPU, no download needed)
 
 ```powershell
-python tests/test_smoke.py
+uv run python tests/test_smoke.py
 ```
 
 If that prints passing tests, the search engine works on your machine. You can run
 the *whole* test suite the same way:
 
 ```powershell
-python tests/test_smoke.py; python tests/test_perception.py; python tests/test_baselines.py; python tests/test_runner.py; python tests/test_analysis.py
+uv run python tests/test_smoke.py; uv run python tests/test_perception.py; uv run python tests/test_baselines.py; uv run python tests/test_runner.py; uv run python tests/test_analysis.py
 ```
 
 ---

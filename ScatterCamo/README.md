@@ -45,14 +45,17 @@ docs/              method notes + design decisions
 ## Quick start
 
 ```bash
-pip install -r requirements.txt
+uv sync                                  # core deps (no torch); see USAGE.md §1
 
 # Verify the engine (NumPy only, no GPU / model download):
-python tests/test_smoke.py
+uv run python tests/test_smoke.py
 
-# Attack one ImageNet image:
-python run_attack.py --model 1 --image path/to/img.JPEG --true_label 8 \
-    --M 10 --queries 10000 --save out
+# Try the flags with no model download (torch-free mock):
+uv run python run_attack.py --mock --image docs/sample.jpg --M 10 --queries 500
+
+# Real attack on an ImageNet image (needs torch):  uv sync --extra real
+uv run python run_attack.py --model 1 --image path/to/img.JPEG \
+    --M 10 --queries 10000 --save out --out_image adv.png
 ```
 
 ## Status
