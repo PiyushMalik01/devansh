@@ -26,6 +26,17 @@ def ssim(adv, x):
     return float(structural_similarity(x, adv, channel_axis=-1, data_range=1.0))
 
 
+def psnr(adv, x, data_range=1.0):
+    """Peak signal-to-noise ratio in dB (higher = more similar).
+
+    Returns ``inf`` when the images are identical (zero MSE).
+    """
+    mse = float(np.mean((adv - x) ** 2))
+    if mse == 0.0:
+        return float("inf")
+    return float(20.0 * np.log10(data_range) - 10.0 * np.log10(mse))
+
+
 def summarize(records):
     """Aggregate a list of per-image result dicts into headline statistics.
 
@@ -37,7 +48,8 @@ def summarize(records):
     asr = len(successes) / n if n else 0.0
 
     def avg(key):
-        vals = [r[key] for r in successes if key in r]
+        # PSNR can be inf (identical images); drop non-finite values from the mean.
+        vals = [r[key] for r in successes if key in r and np.isfinite(r[key])]
         return float(np.mean(vals)) if vals else None
 
     return {
@@ -45,6 +57,7 @@ def summarize(records):
         "asr": asr,
         "avg_l0": avg("l0"),
         "avg_l2": avg("l2"),
+        "avg_psnr": avg("psnr"),
         "avg_ssim": avg("ssim"),
         "avg_queries": float(np.mean([r["queries"] for r in records])) if n else None,
     }

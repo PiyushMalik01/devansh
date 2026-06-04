@@ -11,6 +11,7 @@ adversarial solution found (lowest L2 among adversarial), the final Pareto
 front, the query count, and a per-generation history for plotting.
 """
 
+import logging
 import numpy as np
 from operator import attrgetter
 
@@ -23,6 +24,8 @@ from scattercamo.search import (
     tournament_selection,
 )
 from scattercamo.operators import generate_offspring
+
+log = logging.getLogger(__name__)
 
 
 DEFAULTS = {
@@ -92,40 +95,54 @@ class ScatterCamoAttack:
 
     def optimise(self, loss_function):
         pop_size, budget = self.p["pop_size"], self.p["queries"]
+        log.info("start: M=%d pop=%d budget=%d perceptual=%s max_radius=%.2fpx",
+                 self.p["M"], pop_size, budget, self.W is not None, self.max_radius)
 
         population = [self._new_solution() for _ in range(pop_size)]
         for s in population:
             s.evaluate(loss_function)
         used = pop_size
         best = self._best_adversarial(population)
+        log.info("step init: evaluated %d solutions, adversarial_found=%s",
+                 used, best is not None)
 
+        gen = 0
         while used < budget:
+            gen += 1
             for front in fast_nondominated_sort(population):
                 calculate_crowding_distance(front)
 
             parents = tournament_selection(population, self.p["tournament_size"])
             children = generate_offspring(parents, self.p["pc"], self.p["pm"], self.rng)
             if not children:
+                log.warning("step gen %d: no children produced, stopping early", gen)
                 break
 
+            evaluated = []
             for c in children:
                 if used >= budget:
                     break
                 c.evaluate(loss_function)
                 used += 1
+                evaluated.append(c)        # only evaluated children enter survival
 
-            population = self._survival(population + children, pop_size)
+            population = self._survival(population + evaluated, pop_size)
             current_best = self._best_adversarial(population)
             if current_best is not None and (
                 best is None or current_best.fitnesses[1] < best.fitnesses[1]
             ):
                 best = current_best
 
-            self.history.append({
-                "queries": used,
-                "best_l2": float(best.fitnesses[1]) if best else None,
-                "min_loss": float(min(s.loss for s in population)),
-            })
+            min_loss = float(min(s.loss for s in population))
+            best_l2 = float(best.fitnesses[1]) if best else None
+            self.history.append({"queries": used, "best_l2": best_l2, "min_loss": min_loss})
+            log.debug("step gen %d: queries=%d/%d best_l2=%s min_loss=%.4f",
+                      gen, used, budget,
+                      f"{best_l2:.4f}" if best_l2 is not None else "n/a", min_loss)
+
+        log.info("done: generations=%d queries=%d success=%s best_l2=%s",
+                 gen, used, best is not None,
+                 f"{best.fitnesses[1]:.4f}" if best is not None else "n/a")
 
         return {
             "best": best,

@@ -35,7 +35,7 @@ scattercamo/
   analysis/        frontier curves, Pareto plots, qualitative grids
   losses/          untargeted margin loss (shared interface)
   models/          ImageNet model wrappers + query counting
-  metrics/         ASR, L0, L2, SSIM, aggregation
+  metrics/         ASR, L0, L2, PSNR, SSIM, FID, aggregation
 run_attack.py      single-image entry point
 configs/           dev.yaml (laptop) · full.yaml (rented GPU)
 tests/             dependency-light smoke + unit tests (13, all passing)
@@ -73,6 +73,18 @@ All 13 tests pass (NumPy/scikit-image/matplotlib only — no torch or GPU needed
 `python tests/test_smoke.py && python tests/test_baselines.py && python tests/test_runner.py && python tests/test_analysis.py`
 
 ### Running a comparison
+
+One command compares ScatterCamo to the original Phoenix Williams methods
+(CamoPatch, SA-MOO) plus Sparse-RS, reporting ASR / L2 / PSNR / SSIM / FID:
+
+```bash
+uv sync --extra real
+uv run python compare.py --images path/to/imgs --n 50 --queries 10000 --fid
+# offline plumbing check (no torch / no download):
+uv run python compare.py --mock --n 4 --queries 400
+```
+
+Or drive the same attacks programmatically via `BatchRunner`:
 
 ```python
 from scattercamo.runner import BatchRunner

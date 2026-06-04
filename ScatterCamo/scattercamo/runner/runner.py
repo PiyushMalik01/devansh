@@ -54,6 +54,7 @@ class BatchRunner:
             adv = result.adv_image
             record["l0"] = metrics.l0(adv, x)
             record["l2"] = metrics.l2(adv, x)
+            record["psnr"] = metrics.psnr(adv, x)
             if self.compute_ssim:
                 record["ssim"] = metrics.ssim(adv, x)
         return record

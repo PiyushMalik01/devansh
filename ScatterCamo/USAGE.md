@@ -68,12 +68,13 @@ What it prints:
 
 ```
 success=True  queries=10000  model_queries=10000
-  L0=1234  L2=2.91  SSIM=0.987  pred=435 (true=8)
+  L0=1234  L2=2.91  PSNR=32.4dB  SSIM=0.987  pred=435 (true=8)
 ```
 
 - `success=True` → it found a smudge that fools the model.
 - `pred=435 (true=8)` → the model now says class 435 instead of the correct 8.
-- `L0 / L2 / SSIM` → how big/visible the smudge is (small L2 + high SSIM = good).
+- `L0 / L2 / PSNR / SSIM` → how big/visible the smudge is (small L2, high PSNR,
+  high SSIM = good). See §7 for what each metric means.
 - `--save out` writes `out.npy` containing the original image, the adversarial
   image, the winning genome, and the per-generation history (for plotting).
 
@@ -127,6 +128,7 @@ python run_attack.py --mock --image docs/sample.jpg --M 10 --queries 500 --out_i
 | `--mock` | no | *off* | Use a torch-free fake classifier — no weights download, no GPU. For checking that flags/plumbing work offline (§2b). Not a real attack. |
 | `--out_image` | no | *(none)* | Path **and filename** to save the adversarial image as a viewable picture, e.g. `out/adv.png`. Format is taken from the extension; parent folders are created automatically. |
 | `--save` | no | *(none)* | Filename prefix to save the full `.npy` result (orig + adv + genome + history). Omit to just print. |
+| `--log` | no | `WARNING` | Step-by-step logging level: `DEBUG` (per generation), `INFO` (each step), `WARNING` (default, quiet), `ERROR`. |
 
 For your first runs, **only touch `--image` and `--M`.** Leave the rest at defaults.
 
@@ -348,28 +350,71 @@ Notes:
 
 ---
 
-## 7. Comparing against the baselines (programmatic)
+## 7. Comparing to the original Phoenix Williams methods (`compare.py`)
 
-To benchmark ScatterCamo against the original methods (CamoPatch, SA-MOO,
-Sparse-RS) over a whole dataset, use the `BatchRunner` from Python (full example
-in `README.md`, "Running a comparison"):
+`compare.py` runs ScatterCamo **and** the original methods it builds on —
+**CamoPatch** (NeurIPS 2023), **SA-MOO** (CVPR 2023), and **Sparse-RS** — over the
+*same* images and model, and prints one table of **ASR, avg L2, PSNR, SSIM,
+queries, and FID**.
 
-```python
-from scattercamo.runner import BatchRunner
-from scattercamo.attack import ScatterCamoAttack
-from scattercamo.losses import UnTargeted
-from scattercamo.models import ImageNetModel
+```powershell
+# real comparison: needs torch + a folder of images
+uv sync --extra real
+uv run python compare.py --images path\to\imgs --n 50 --queries 10000 --fid --out results\cmp.csv
 
-model = ImageNetModel(1)                                  # resnet50
-loss_factory = lambda x, y: UnTargeted(model, y, to_pytorch=True)
-factory = lambda x: ScatterCamoAttack({"x": x, "M": 10, "queries": 10000})
-
-summary = BatchRunner(factory, loss_factory, out_dir="results", name="scattercamo").run(dataset)
-print(summary["asr"], summary["avg_l2"], summary["avg_ssim"])
+# offline plumbing check (synthetic images + mock model; numbers NOT meaningful):
+uv run python compare.py --mock --n 4 --queries 400
 ```
 
-`asr` = Attack Success Rate (fraction of images fooled). The runner checkpoints,
-so you can stop and resume long sweeps.
+Example (mock) output shape:
+
+```
+method        ASR     avgL2     PSNR     SSIM     queries    FID
+scattercamo   1.00    6.858     24.18    0.9738   250        12.3
+camopatch     1.00    22.964    13.67    0.6001   250        20.1
+samoo         0.84    ...
+sparse_rs     1.00    14.635    17.59    0.8989   250        ...
+```
+
+Useful flags: `--methods scattercamo,camopatch` (subset), `--perceptual` (run
+ScatterCamo with perceptual placement), `--M`, `--eps` (L0 budget for
+SA-MOO/Sparse-RS), `--fid`, `--out` (CSV path), `--log`.
+
+### What the metrics mean
+
+| Metric | Meaning | Better |
+|---|---|---|
+| **ASR** | Attack Success Rate — fraction of images fooled | higher |
+| **L0** | number of pixels changed (sparsity) | lower |
+| **L2** | total magnitude of the change | lower |
+| **PSNR** | peak signal-to-noise ratio, dB (per image) | higher |
+| **SSIM** | structural similarity to the original (0–1) | higher |
+| **FID** | Fréchet Inception Distance — how different the *set* of adversarial images looks from the clean set | lower |
+
+> **FID notes.** It is a **set-level** metric (≥2 images; more is better — it's
+> noisy on tiny sets) and needs InceptionV3 features, so it requires the `real`
+> extra (`uv sync --extra real`). The Fréchet *math* runs on the core install, so
+> you can feed it your own features. Without `--fid` (or without torch) the FID
+> column shows `n/a`.
+
+### Programmatic comparison (BatchRunner)
+
+For custom sweeps you can drive the same attacks from Python via `BatchRunner`
+(checkpoints + resume); see the example in `README.md`. Each per-image record now
+includes `psnr` alongside `l0/l2/ssim`, and `summarize()` reports `avg_psnr`.
+
+### Watching the steps (`--log`)
+
+Both `run_attack.py` and `compare.py` log their steps. Raise the level to watch
+progress:
+
+```powershell
+uv run python run_attack.py --mock --image docs/sample.jpg --queries 500 --log INFO
+# ... run_attack: step: loaded image ...
+# ... scattercamo.attack: start: M=10 pop=20 budget=500 ...
+# ... scattercamo.attack: done: generations=24 queries=500 success=True best_l2=...
+uv run python run_attack.py --mock --image docs/sample.jpg --queries 500 --log DEBUG  # per-generation
+```
 
 ---
 

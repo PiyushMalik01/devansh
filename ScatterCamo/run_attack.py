@@ -8,6 +8,7 @@ Sweeping --M over {1,5,10,20,40} traces the sparsity / invisibility frontier.
 """
 
 import argparse
+import logging
 import numpy as np
 
 from scattercamo.losses import UnTargeted
@@ -57,7 +58,7 @@ DEFAULTS = {
     "pop_size": 20, "pc": 0.3, "pm": 0.3, "seed": 0,
     "max_radius_frac": 0.10, "perceptual": False, "mask_dark": 1.0,
     "mask_edges": 1.0, "mask_texture": 1.0, "mask_window": 7, "mock": False,
-    "out_image": None, "save": None,
+    "out_image": None, "save": None, "log": "WARNING",
 }
 
 
@@ -129,22 +130,37 @@ def main():
                     help="path + filename to save the adversarial image as a viewable "
                          "picture, e.g. out/adv.png (format from the extension)")
     ap.add_argument("--save", type=str, default=S, help="path prefix for .npy result")
+    ap.add_argument("--log", type=str, default=S,
+                    help="logging level for step-by-step progress: DEBUG (per "
+                         "generation), INFO (steps), WARNING (default), ERROR")
 
     args = resolve_config(ap, vars(ap.parse_args()))
 
+    logging.basicConfig(
+        level=getattr(logging, str(args.log).upper(), logging.WARNING),
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+    log = logging.getLogger("run_attack")
+    log.info("step: config resolved (model=%s mock=%s perceptual=%s M=%s queries=%s)",
+             args.model, args.mock, args.perceptual, args.M, args.queries)
+
     x = load_image(args.image)
+    log.info("step: loaded image %s -> %s", args.image, x.shape)
     if args.mock:
         from scattercamo.models import MockModel
         model = MockModel(x)              # torch-free, no weights download
         to_pytorch = False
+        log.info("step: model = MockModel (torch-free)")
     else:
         from scattercamo.models import ImageNetModel
         model = ImageNetModel(args.model)
         to_pytorch = True
+        log.info("step: model = ImageNetModel(%d)", args.model)
 
     # The clean prediction is needed either way: to auto-fill --true_label, and
     # to warn when the model is already wrong (nothing left to attack).
     clean_pred = UnTargeted(model, 0, to_pytorch=to_pytorch).get_label(x)
+    log.info("step: clean prediction = %d", clean_pred)
     if args.true_label is None:
         true_label = clean_pred
         print(f"auto true_label = {true_label} (model's clean-image prediction)")
@@ -173,7 +189,7 @@ def main():
           f"model_queries={model.queries}")
     if adv is not None:
         print(f"  L0={metrics.l0(adv, x)}  L2={metrics.l2(adv, x):.4f}  "
-              f"SSIM={metrics.ssim(adv, x):.4f}  "
+              f"PSNR={metrics.psnr(adv, x):.2f}dB  SSIM={metrics.ssim(adv, x):.4f}  "
               f"pred={loss.get_label(adv)} (true={true_label})")
 
     if args.save and adv is not None:
@@ -186,10 +202,12 @@ def main():
             "queries": result["queries"], "history": result["history"],
         }, allow_pickle=True)
         print(f"  saved -> {args.save}.npy")
+        log.info("step: saved .npy -> %s.npy", args.save)
 
     if args.out_image and adv is not None:
         save_image(adv, args.out_image)
         print(f"  saved image -> {args.out_image}")
+        log.info("step: saved image -> %s", args.out_image)
 
 
 if __name__ == "__main__":

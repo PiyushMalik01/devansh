@@ -8,6 +8,7 @@ Pillow>=9.0
 
 # Metrics + analysis
 scikit-image>=0.20
+scipy>=1.9          # FID Frechet distance
 matplotlib>=3.7
 PyYAML>=6.0
 
